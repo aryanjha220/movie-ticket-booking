@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>BookMyShow - Devara: Part 1</title>
+    <style>
+        :root {
+            --bms-red: #F84464;
+            --bms-dark: #333545;
+            --bg-light: #F2F5F9;
+            --available: #FFFFFF;
+            --selected: #1EA83C;
+            --booked: #EAEAEA;
+            --border: #CCCCCC;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-light);
+            margin: 0;
+            padding: 0;
+            padding-bottom: 80px;
+        }
+
+        /* Navbar & Header */
+        .navbar {
+            background-color: var(--bms-dark);
+            color: white;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .navbar h2 { margin: 0; font-size: 24px; letter-spacing: 1px; }
+        .location { font-size: 14px; color: #ccc; }
+
+        .movie-header {
+            background-color: white;
+            padding: 20px 30px;
+            border-bottom: 1px solid #ddd;
+        }
+        .movie-header h1 { margin: 0; font-size: 28px; color: #333; }
+        .movie-header p { margin: 5px 0 0 0; color: #666; font-size: 14px; }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); z-index: 1000;
+            display: flex; justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background: white; padding: 30px; border-radius: 10px; text-align: center; width: 350px;
+        }
+        .modal-content h3 { margin-top: 0; color: #333; }
+        .number-selector { display: flex; justify-content: center; gap: 10px; margin: 20px 0; }
+        .number-selector button {
+            width: 40px; height: 40px; border-radius: 50%; border: 1px solid #ccc;
+            background: white; cursor: pointer; font-size: 16px;
+        }
+        .number-selector button.active {
+            background: var(--bms-red); color: white; border-color: var(--bms-red);
+        }
+        .bms-btn {
+            background: var(--bms-red); color: white; width: 100%; padding: 12px;
+            border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 16px;
+        }
+
+        /* Screen & Grid */
+        .theater-container {
+            max-width: 800px; margin: 40px auto; text-align: center;
+            background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        .screen {
+            height: 50px; width: 100%; border-top: 3px solid #ccc;
+            border-radius: 50% 50% 0 0 / 100% 100% 0 0; margin-bottom: 10px;
+        }
+        .screen-text { font-size: 12px; color: #999; letter-spacing: 2px; text-transform: uppercase; }
+
+        .seat-grid {
+            display: grid; grid-template-columns: repeat(10, 1fr); gap: 10px;
+            margin-top: 40px; justify-content: center;
+        }
+        .seat {
+            width: 35px; height: 35px; line-height: 35px; font-size: 12px; font-weight: 500;
+            text-align: center; border: 1px solid var(--border); border-radius: 5px;
+            cursor: pointer; user-select: none; transition: all 0.2s ease;
+        }
+
+        .seat.AVAILABLE { background-color: var(--available); color: #333; }
+        .seat.AVAILABLE:hover { border-color: var(--selected); color: var(--selected); }
+        .seat.SELECTED { background-color: var(--selected); color: white; border-color: var(--selected); }
+        .seat.HELD { background-color: var(--booked); color: #999; cursor: not-allowed; border-color: #eee; }
+
+        /* Sticky Footer */
+        .footer {
+            position: fixed; bottom: 0; left: 0; width: 100%; background: white;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1); padding: 15px 30px;
+            display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;
+            transform: translateY(100%); transition: transform 0.3s ease; z-index: 100;
+        }
+        .footer.active { transform: translateY(0); }
+        .price-text { font-size: 18px; font-weight: bold; color: #333; }
+    </style>
+</head>
+<body>
+
+<!-- Pop-up Modal for Seat Quantity -->
+<div id="seatQuantityModal" class="modal-overlay">
+    <div class="modal-content">
+        <h3>How many seats?</h3>
+        <div class="number-selector">
+            <button onclick="setSeatQuantity(1, this)">1</button>
+            <button onclick="setSeatQuantity(2, this)" class="active">2</button>
+            <button onclick="setSeatQuantity(3, this)">3</button>
+            <button onclick="setSeatQuantity(4, this)">4</button>
+            <button onclick="setSeatQuantity(5, this)">5</button>
+        </div>
+        <button class="bms-btn" onclick="closeModal()">Select Seats</button>
+    </div>
+</div>
+
+<!-- UI Header -->
+<nav class="navbar">
+    <h2>bookmyshow</h2>
+    <div class="location">Prayagraj | PVR Civil Lines</div>
+</nav>
+
+<div class="movie-header">
+    <h1>Devara: Part 1</h1>
+    <p>Action, Thriller | Telugu, Hindi</p>
+</div>
+
+<!-- Seating Area -->
+<div class="theater-container">
+    <div class="screen"></div>
+    <div class="screen-text">All eyes this way</div>
+
+    <div class="seat-grid">
+        <div th:each="seat : ${seats}"
+             th:classappend="${seat.status}"
+             class="seat"
+             th:attr="data-id=${seat.id}"
+             onclick="toggleSeat(this)">
+            <span th:text="${seat.seatNumber}">S1</span>
+        </div>
+    </div>
+</div>
+
+<!-- Checkout Footer -->
+<div class="footer" id="checkoutFooter">
+    <div class="price-text" id="priceDisplay">Rs. 0</div>
+    <button class="bms-btn" style="width: auto; padding: 12px 40px;" onclick="submitBooking()">Pay Rs. <span id="btnPrice">0</span></button>
+</div>
+
+<script>
+    let requiredSeats = 2; // Default starting value
+    let selectedSeatIds = [];
+    const ticketPrice = 220; // Exact regular price from BMS logic
+
+    function setSeatQuantity(num, btnElement) {
+        requiredSeats = num;
+        document.querySelectorAll('.number-selector button').forEach(btn => btn.classList.remove('active'));
+        btnElement.classList.add('active');
+    }
+
+    function closeModal() {
+        document.getElementById('seatQuantityModal').style.display = 'none';
+    }
+
+    function toggleSeat(clickedElement) {
+        if (clickedElement.classList.contains('HELD')) return;
+
+        // Naye click par purani selected seats clear kar do (just like BMS)
+        if (selectedSeatIds.length > 0) {
+            document.querySelectorAll('.seat.SELECTED').forEach(seat => {
+                seat.classList.remove('SELECTED');
+                seat.classList.add('AVAILABLE');
+            });
+            selectedSeatIds = [];
+        }
+
+        let currentSeat = clickedElement;
+        let seatsToSelect = [];
+
+        // Auto-select loop adjacent DOM elements (nextSibling) ko pakadta hai
+        for (let i = 0; i < requiredSeats; i++) {
+            if (currentSeat && currentSeat.classList.contains('AVAILABLE') && !currentSeat.classList.contains('HELD')) {
+                seatsToSelect.push(currentSeat);
+                currentSeat = currentSeat.nextElementSibling;
+            } else {
+                alert("Ek saath " + requiredSeats + " seats is row mein available nahi hain!");
+                return;
+            }
+        }
+
+        // Agar consecutive seats mil gayi, toh green color apply karo
+        seatsToSelect.forEach(seat => {
+            seat.classList.remove('AVAILABLE');
+            seat.classList.add('SELECTED');
+            selectedSeatIds.push(parseInt(seat.getAttribute('data-id')));
+        });
+
+        updateFooter();
+    }
+
+    function updateFooter() {
+        const footer = document.getElementById('checkoutFooter');
+        const total = selectedSeatIds.length * ticketPrice;
+
+        if (selectedSeatIds.length > 0) {
+            footer.classList.add('active');
+            document.getElementById('priceDisplay').innerText = selectedSeatIds.length + " Ticket(s) | Rs. " + total;
+            document.getElementById('btnPrice').innerText = total;
+        } else {
+            footer.classList.remove('active');
+        }
+    }
+
+    async function submitBooking() {
+        if (selectedSeatIds.length === 0) return;
+
+        const response = await fetch('/api/bookings/hold', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ showSeatIds: selectedSeatIds })
+        });
+
+        if (response.ok) {
+            alert("Tickets booked successfully!");
+            window.location.reload();
+        } else {
+            alert("Booking Failed! Seats unavailable.");
+            window.location.reload();
+        }
+    }
+</script>
+</body>
+</html>
